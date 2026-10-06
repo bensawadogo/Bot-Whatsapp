@@ -1,0 +1,51 @@
+# Dépendances
+node_modules/
+
+# Build TypeScript
+dist/
+*.tsbuildinfo
+
+# Variables d'environnement (secrets — ne JAMAIS commiter)
+.env
+.env.*
+*.env.local
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Snapshots de vérification en dur (lint/tsc/test critiques)
+lint_*.txt
+tsc_*.txt
+test_*.txt
+testout.txt
+
+# Répertoire interne .kilo
+.kilo/
+
+# Sauvegardes ponctuelles des générateurs n8n
+n8n/**/*.bak
+
+# Prisma (client généré)
+.prisma/
+
+# Couverture de tests
+coverage/
+
+# Médias uploadés
+uploads/
+
+# Clés et certificats
+*.key
+*.pem
+
+# Systèmes d'exploitation
+.DS_Store
+Thumbs.db
+
+# Éditeurs / IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json

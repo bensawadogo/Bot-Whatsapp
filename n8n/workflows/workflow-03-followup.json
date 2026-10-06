@@ -1,0 +1,58 @@
+{
+  "name": "AfriBot — Relance Commande",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "followup"
+      },
+      "id": 201,
+      "name": "webhook-followup",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.0,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "sender": "={{ $env.MERCHANT_PHONE }}",
+        "receiver": "={{ $json.phone }}",
+        "text": "Bonjour {{ $json.customerName ?? \"client\" }} 👋\n\nVotre commande #{{ $json.orderId }} est en attente de règlement.\n• Prestations : {{ $json.amount ?? 0 }} FCFA\n• Durée : {{ $json.paxCount ?? 1 }} passager(s)\n\n👉 Pour finaliser, envoyez le montant exact à 22177 60 00 000 (site ou en boutique).\n💡 Payement possible : cash ou Mobile Money.\n\nÀ très vite !",
+        "options": {}
+      },
+      "id": 203,
+      "name": "send-followup",
+      "type": "n8n-nodes-base.evolutionApi",
+      "typeVersion": 2.0,
+      "position": [
+        500,
+        300
+      ],
+      "credentials": {
+        "evolutionApi": {
+          "id": "evo-cred",
+          "name": "Evolution API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "webhook-followup": {
+      "main": [
+        [
+          {
+            "node": "send-followup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "meta": {
+    "instanceId": "afribot-n8n",
+    "templateDemonstration": false
+  }
+}

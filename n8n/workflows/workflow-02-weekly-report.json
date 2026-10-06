@@ -1,0 +1,95 @@
+{
+  "name": "AfriBot — Rapport hebdomadaire",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "mode": "everyWeek",
+          "cronExpression": "0 6 * * 1",
+          "daysFilter": []
+        }
+      },
+      "id": 1,
+      "name": "schedule-weekly",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.AFRIBOT_API_URL }}/api/stats/weekly",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.AFRIBOT_JWT }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": 2,
+      "name": "fetch-weekly",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "sender": "={{ $env.MERCHANT_PHONE }}",
+        "receiver": "={{ $node[\"make-senders\"].output }}",
+        "text": "⏰ Point d'étape horaire {{ $now.toFormat(\"HH:mm\") }} GMT · {{ $json.shop_label ?? \"Ma Boutique\" }}\n🆕 Commandes dernières 60 min : {{ $json.wa_orders_last_hour ?? 0 }}\n💰 CA dernière heure : {{ $json.hourly_revenue_last_hour?.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, \" \") ?? \" —\" }} FCFA\n📊 Moyenne/heure (24h) : {{ $json.hourly_avg_24h?.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, \" \") ?? \" —\" }} FCFA\n📈 CA département 24h : {{ $json.department_revenue_24h?.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, \" \") ?? \" —\" }} FCFA\n⚠️ Stock bas : {{ $json.low_stock_count ?? 0 }} articles",
+        "options": {}
+      },
+      "id": 3,
+      "name": "send-weekly",
+      "type": "n8n-nodes-base.evolutionApi",
+      "typeVersion": 2.0,
+      "position": [
+        760,
+        300
+      ],
+      "credentials": {
+        "evolutionApi": {
+          "id": "evo-cred",
+          "name": "Evolution API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "schedule-weekly": {
+      "main": [
+        [
+          {
+            "node": "fetch-weekly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch-weekly": {
+      "main": [
+        [
+          {
+            "node": "send-weekly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "meta": {
+    "instanceId": "afribot-n8n",
+    "templateDemonstration": false
+  }
+}

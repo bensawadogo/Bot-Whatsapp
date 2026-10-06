@@ -1,0 +1,78 @@
+# -*- mode: powershell -*-
+# workflow-01 : AfriBot — Rapport journalier
+$fn = 'c:\BOT-WHATSAPP\n8n\workflows\workflow-01-daily-report.json'
+$w = @'
+{
+  "name": "AfriBot — Rapport journalier",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "mode": "everyDay",
+          "cronExpression": "0 5 * * *",
+          "daysFilter": []
+        }
+      },
+      "id": "schedule-daily",
+      "name": "Planifier 05:00 GMT (06:00 Dakar)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.AFRIBOT_API_URL }}/api/stats/today",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.AFRIBOT_JWT }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-daily",
+      "name": "AfriBot /api/stats/today",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "sender": "={{ $env.MERCHANT_PHONE }}",
+        "receiver": "={{ $node[\"make-senders\"].output }}",
+        "text": ".EN {{ $json.mode ?? \" Production\" }} · {{ $json.shop_label ?? \"Ma Boutique\" }} — Journal du {{ $now.toFormat(\"dd/MM/yyyy HH:mm\") }} GMT\n\n💰 Caisse : {{ $json.cash_total?.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, \" \") ?? \" —\" }} FCFA ({{ $json.cash_orders_count ?? 0 }} ventes)\n📱 WhatsApp : {{ $json.wa_orders_count ?? 0 }} ({{ $json.wa_revenue?.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, \" \") ?? \" —\" }} FCFA)\n✅ Paiements SUCCESS : {{ $json.success_payments_count ?? 0 }} / {{ $json.pending_payments_count ?? 0 }} en attente\n📦 Stock bas : {{ $json.low_stock_count ?? 0 }} articles\n💬 Messages aujourd\u0027hui : {{ $json.messages_count ?? 0 }}",
+        "options": {}
+      },
+      "id": "send-daily",
+      "name": "Envoyer message WhatsApp récapitulatif",
+      "type": "n8n-nodes-base.evolutionApi",
+      "typeVersion": 2,
+      "position": [760, 300],
+      "credentials": {
+        "evolutionApi": {
+          "id": "evo-cred",
+          "name": "Evolution API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Planifier 05:00 GMT (06:00 Dakar)": {
+      "main": [[{"node": "AfriBot /api/stats/today", "type": "main", "index": 0}]]
+    },
+    "AfriBot /api/stats/today": {
+      "main": [[{"node": "Envoyer message WhatsApp récapitulatif", "type": "main", "index": 0}]]
+    }
+  },
+  "meta": {
+    "instanceId": "afribot-n8n",
+    "templateDemonstration": false
+  }
+}
+'@
+
+Set-Content -Path $fn -Value $w -Encoding UTF8 -NoNewline
+Write-Host "✓ workflow-01-daily-report.json"

@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<!-- AfriBot — Dashboard commerçant (Phase 5). HTML statique, zéro framework :
+     léger, lisible sur mobile et en connexion 2G/3G. -->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AfriBot — Dashboard commerçant</title>
+<style>
+:root { --vert:#1D9E75; --vf:#157a5a; --fond:#f5f7f6; --carte:#fff;
+        --texte:#1a2b25; --gris:#6b7c75; --rouge:#d64545; --orange:#e68a00; }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+       background:var(--fond); color:var(--texte); padding:12px; }
+h2 { font-size:1rem; margin:18px 0 8px; color:var(--vf); }
+header { display:flex; align-items:center; justify-content:space-between;
+         background:var(--vert); color:#fff; padding:12px 16px; border-radius:10px; }
+header .logo { font-size:1.1rem; font-weight:700; }
+header .commercant { font-size:.85rem; opacity:.9; }
+header button { background:rgba(255,255,255,.2); color:#fff;
+                border:1px solid rgba(255,255,255,.5); border-radius:6px;
+                padding:6px 12px; cursor:pointer; font-size:.85rem; }
+.cartes { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; }
+.carte { background:var(--carte); border-radius:10px; padding:12px;
+         box-shadow:0 1px 3px rgba(0,0,0,.08); }
+.carte .valeur { font-size:1.3rem; font-weight:700; color:var(--vf); margin-top:4px; }
+.carte .titre { font-size:.8rem; color:var(--gris); }
+table { width:100%; border-collapse:collapse; background:var(--carte); border-radius:10px;
+        overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.08); font-size:.85rem; }
+th, td { padding:8px 10px; text-align:left; border-bottom:1px solid #edf1ef; }
+th { background:#eaf5f1; color:var(--vf); font-weight:600; }
+td .btn { display:inline-block; margin:2px; padding:4px 8px; border-radius:5px;
+          border:1px solid var(--vert); background:#fff; color:var(--vf);
+          cursor:pointer; font-size:.75rem; }
+td .btn.danger { border-color:var(--rouge); color:var(--rouge); }
+.badge { padding:2px 8px; border-radius:999px; font-size:.75rem; font-weight:600; }
+.badge.rouge { background:#fdecec; color:var(--rouge); }
+.badge.orange { background:#fdf3e6; color:var(--orange); }
+.badge.vert { background:#e7f6ef; color:var(--vf); }
+.badge.gris { background:#eef1f0; color:var(--gris); }
+#login-section { max-width:360px; margin:12vh auto; background:var(--carte); padding:24px;
+                 border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.1); }
+#login-section h1 { font-size:1.2rem; color:var(--vf); margin-bottom:4px; }
+.sous-titre { font-size:.85rem; color:var(--gris); margin-bottom:16px; }
+label { display:block; font-size:.8rem; color:var(--gris); margin:10px 0 4px; }
+input, select { width:100%; padding:9px 10px; border:1px solid #cfd8d4;
+                border-radius:6px; font-size:.9rem; }
+button.principal { width:100%; margin-top:16px; padding:11px; background:var(--vert);
+                   color:#fff; border:none; border-radius:8px; font-size:1rem;
+                   font-weight:600; cursor:pointer; }
+button.principal:hover { background:var(--vf); }
+.erreur { color:var(--rouge); font-size:.85rem; margin-top:10px; min-height:1.2em; }
+.barre-actions { display:flex; justify-content:space-between; align-items:center;
+                 gap:8px; margin-bottom:8px; }
+.barre-actions .btn { padding:7px 12px; border-radius:6px; border:1px solid var(--vert);
+                      background:var(--vert); color:#fff; cursor:pointer; font-size:.85rem; }
+.barre-actions select { width:auto; }
+#modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45);
+         align-items:center; justify-content:center; padding:16px; }
+#modal.ouvert { display:flex; }
+#modal .contenu { background:#fff; border-radius:12px; padding:20px; width:100%; max-width:420px; }
+#modal h3 { color:var(--vf); margin-bottom:8px; }
+#modal .ligne-boutons { display:flex; gap:8px; margin-top:14px; }
+#modal .ligne-boutons button { flex:1; padding:10px; border-radius:8px; border:none;
+                               font-size:.9rem; cursor:pointer; }
+#modal .annuler { background:#eef1f0; color:var(--texte); }
+</style>
+</head>
+<body>
+<!-- ======================= LOGIN ======================= -->
+<section id="login-section">
+  <h1>AfriBot 🌍</h1>
+  <p class="sous-titre">Espace commerçant — connecte-toi pour gérer ta boutique</p>
+  <form onsubmit="return login(event)">
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username" required>
+    <label for="password">Mot de passe</label>
+    <input id="password" type="password" autocomplete="current-password" required>
+    <button type="submit" class="principal">Connexion</button>
+    <div class="erreur" id="erreur-login"></div>
+  </form>
+</section>
+
+<!-- ======================= DASHBOARD ======================= -->
+<div id="dashboard" style="display:none">
+  <header>
+    <div>
+      <div class="logo">AfriBot 🌍</div>
+      <div class="commercant" id="commercant-nom">…</div>
+    </div>
+    <button onclick="logout()">Déconnexion</button>
+  </header>
+
+  <h2>Aujourd'hui</h2>
+  <div class="cartes">
+    <div class="carte"><div class="titre">📦 Commandes</div><div class="valeur" id="stat-commandes">–</div></div>
+    <div class="carte"><div class="titre">💰 Revenus</div><div class="valeur" id="stat-revenus">–</div></div>
+    <div class="carte"><div class="titre">👥 Clients uniques</div><div class="valeur" id="stat-clients">–</div></div>
+    <div class="carte"><div class="titre">📈 Conversion</div><div class="valeur" id="stat-conversion">–</div></div>
+  </div>
+
+  <h2>Revenus — 7 derniers jours</h2>
+  <table><thead><tr><th>Date</th><th>Commandes</th><th>Revenus FCFA</th></tr></thead>
+    <tbody id="tbl-hebdo"></tbody></table>
+
+  <h2>Top 5 produits</h2>
+  <table><thead><tr><th>Produit</th><th>Vendus</th><th>Revenus</th></tr></thead>
+    <tbody id="tbl-top"></tbody></table>
+
+  <h2>Stock bas (alerte ≤ 5)</h2>
+  <table><thead><tr><th>Produit</th><th>Catégorie</th><th>Stock restant</th></tr></thead>
+    <tbody id="tbl-stock"></tbody></table>
+
+  <h2>Catalogue</h2>
+  <div class="barre-actions">
+    <button class="btn" onclick="document.getElementById('modal').classList.add('ouvert')">+ Ajouter un produit</button>
+    <span class="chargement" id="chargement-catalogue"></span>
+  </div>
+  <table><thead><tr><th>Nom</th><th>Prix</th><th>Stock</th><th>Catégorie</th><th>Actions</th></tr></thead>
+    <tbody id="tbl-catalogue"></tbody></table>
+
+  <h2>Commandes récentes</h2>
+  <div class="barre-actions">
+    <select id="filtre-statut" onchange="chargerCommandes()">
+      <option value="">Tous les statuts</option>
+      <option value="PENDING">PENDING</option>
+      <option value="CONFIRMED">CONFIRMED</option>
+      <option value="PAID">PAID</option>
+      <option value="DELIVERED">DELIVERED</option>
+      <option value="CANCELLED">CANCELLED</option>
+    </select>
+  </div>
+  <table><thead><tr><th>N°</th><th>Client</th><th>Montant</th><th>Statut</th><th>Date</th></tr></thead>
+    <tbody id="tbl-commandes"></tbody></table>
+</div>
+
+<!-- ======================= CAMPAGNES (CTWA + Broadcast) ======================= -->
+<h2>📢 Campagnes</h2>
+
+<!-- Bloc 1 — Score qualité (anti-ban Meta) -->
+<div id="qualite-campagne" class="carte" style="padding:16px;margin-bottom:12px">
+  <div id="qualite-badge" class="badge gris">Score qualité en cours de chargement…</div>
+  <p id="qualite-details" style="margin:8px 0 0;font-size:.9rem"></p>
+  <p style="margin:8px 0 0;font-size:.85rem;color:var(--gris)">
+    💡 Conseil AfriBot : envoyez uniquement aux clients qui vous ont écrit en
+    premier. C'est la règle Meta — et ce qui donne les meilleurs résultats.
+  </p>
+</div>
+
+<!-- Bloc 2 — Créer une campagne -->
+<div class="carte" style="padding:16px;margin-bottom:12px">
+  <h3 style="margin-top:0">Créer une campagne</h3>
+  <div class="ligne-boutons" style="gap:8px;flex-wrap:wrap">
+    <select id="camp-segment">
+      <option value="ALL">👥 Tous mes clients (opt-in)</option>
+      <option value="ACTIVE_30">🔥 Actifs ce mois (moins de risque)</option>
+      <option value="DORMANT">😴 Inactifs (relance)</option>
+      <option value="NEW">🆕 Nouveaux (jamais commandé)</option>
+    </select>
+    <select id="camp-template"></select>
+    <input id="camp-nom" placeholder="Nom de la campagne" style="max-width:220px" />
+    <input id="camp-p1" placeholder="Variable {{1}}" style="max-width:140px" />
+    <input id="camp-p2" placeholder="Variable {{2}} (option)" style="max-width:140px" />
+    <button class="btn principal" id="btn-lancer-campagne" onclick="lancerCampagne()">Lancer la campagne</button>
+    <span id="camp-feedback" class="chargement"></span>
+  </div>
+  <p id="camp-estimation" style="margin:8px 0 0;font-size:.85rem;color:var(--gris)"></p>
+</div>
+
+<!-- Bloc 3 — Historique des campagnes -->
+<table>
+  <thead><tr>
+    <th>Nom</th><th>Date</th><th>Statut</th><th>Envoyés</th><th>Lus</th>
+    <th>Réponses</th><th>Commandes</th><th>ROI/message</th><th>BlockRate</th><th></th>
+  </tr></thead>
+  <tbody id="tbl-campagnes"><tr><td colspan="10">Chargement…</td></tr></tbody>
+</table>
+<div class="erreur" id="erreur-campagnes"></div>
+
+<!-- ======================= MODAL AJOUT PRODUIT ======================= -->
+<div id="modal">
+  <div class="contenu">
+    <h3>+ Ajouter un produit</h3>
+    <label for="p-nom">Nom</label><input id="p-nom" required>
+    <label for="p-description">Description</label><input id="p-description">
+    <label for="p-prix">Prix (FCFA)</label><input id="p-prix" type="number" min="1" required>
+    <label for="p-stock">Stock</label><input id="p-stock" type="number" min="0" required>
+    <label for="p-categorie">Catégorie</label><input id="p-categorie" value="general">
+    <label for="p-image">URL de la photo (optionnel)</label><input id="p-image" type="url">
+    <div class="erreur" id="erreur-produit"></div>
+    <div class="ligne-boutons">
+      <button class="annuler" onclick="fermerModal()">Annuler</button>
+      <button class="principal" style="margin:0" onclick="ajouterProduit()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const TOKEN = () => sessionStorage.getItem('afribot_token');
+
+/* Toutes les requêtes passent ici : header Bearer + redirection 401 → login */
+async function api(chemin, options) {
+  options = options || {};
+  const res = await fetch(chemin, {
+    method: options.method || 'GET',
+    headers: Object.assign(
+      { 'Content-Type': 'application/json' },
+      TOKEN() ? { Authorization: 'Bearer ' + TOKEN() } : {},
+      options.headers || {}
+    ),
+    body: options.body,
+  });
+  if (!res.ok) {
+    let detail = 'Requête impossible (' + res.status + ')';
+    try {
+      const payload = await res.json();
+      detail = payload.error || detail;
+    } catch (_) {
+    }
+    if (res.status === 401) {
+      logout();
+      throw new Error('Session expirée');
+    }
+    throw new Error(detail);
+  }
+  return res;
+}
+
+function login(event) {
+  event.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email, password: password }),
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (!data.token) {
+        document.getElementById('erreur-login').textContent = data.error || 'Connexion impossible';
+        return;
+      }
+      sessionStorage.setItem('afribot_token', data.token); // sessionStorage (pas localStorage)
+      afficherDashboard();
+    })
+    .catch(function () {
+      document.getElementById('erreur-login').textContent = 'Serveur injoignable — réessaie';
+    });
+  return false;
+}
+
+function logout() {
+  sessionStorage.removeItem('afribot_token');
+  location.reload();
+}
+
+function afficherDashboard() {
+  document.getElementById('login-section').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  loadDashboard();
+}
+
+/* Échappement HTML (noms produits saisis par le commerçant) */
+function echap(texte) {
+  const div = document.createElement('div');
+  div.textContent = String(texte == null ? '' : texte);
+  return div.innerHTML;
+}
+
+function badgeStock(stock) {
+  const classe = stock <= 2 ? 'rouge' : (stock <= 5 ? 'orange' : 'vert');
+  return '<span class="badge ' + classe + '">' + stock + '</span>';
+}
+
+/* Les 6 sources en parallèle (Promise.all) — rapide même en 3G */
+async function loadDashboard() {
+  try {
+    const reponses = await Promise.all([
+      api('/api/auth/me').then(function (r) { return r.json(); }),
+      api('/api/stats/today').then(function (r) { return r.json(); }),
+      api('/api/stats/weekly').then(function (r) { return r.json(); }),
+      api('/api/stats/top-products').then(function (r) { return r.json(); }),
+      api('/api/stats/conversion').then(function (r) { return r.json(); }),
+      api('/api/stats/low-stock').then(function (r) { return r.json(); }),
+    ]);
+    const me = reponses[0], today = reponses[1], weekly = reponses[2],
+          top = reponses[3], conversion = reponses[4], lowStock = reponses[5];
+
+    if (me.success) document.getElementById('commercant-nom').textContent = me.email;
+    if (today.success) {
+      document.getElementById('stat-commandes').textContent = today.data.ordersCount;
+      document.getElementById('stat-revenus').textContent = today.data.revenueFormatted;
+      document.getElementById('stat-clients').textContent = today.data.uniqueCustomers;
+    }
+    if (conversion.success) {
+      document.getElementById('stat-conversion').textContent = conversion.data.conversionRate + ' %';
+    }
+    if (weekly.success) {
+      document.getElementById('tbl-hebdo').innerHTML = weekly.data.map(function (j) {
+        return '<tr><td>' + j.date + '</td><td>' + j.ordersCount + '</td><td>' + j.revenueFormatted + '</td></tr>';
+      }).join('');
+    }
+    if (top.success) {
+      document.getElementById('tbl-top').innerHTML = top.data.map(function (p) {
+        return '<tr><td>' + echap(p.productName) + '</td><td>' + p.totalSold + '</td><td>' + p.revenueFormatted + '</td></tr>';
+      }).join('');
+    }
+    if (lowStock.success) {
+      document.getElementById('tbl-stock').innerHTML = lowStock.data.length === 0
+        ? '<tr><td colspan="3">Aucun produit en stock bas ✅</td></tr>'
+        : lowStock.data.map(function (p) {
+            return '<tr><td>' + echap(p.name) + '</td><td>' + echap(p.category) + '</td><td>' + badgeStock(p.stock) + '</td></tr>';
+          }).join('');
+    }
+    await Promise.all([chargerCatalogue(), chargerCommandes()]);
+  } catch (err) {
+    if (!TOKEN()) return;
+    alert(err instanceof Error ? err.message : 'Chargement du dashboard impossible');
+  }
+}
+let produits = [];
+
+async function chargerCatalogue() {
+  const res = await api('/api/catalog?limit=100').then(function (r) { return r.json(); });
+  if (!res.products) return;
+  produits = res.products;
+  document.getElementById('tbl-catalogue').innerHTML = produits.length === 0
+    ? '<tr><td colspan="5">Aucun produit — clique sur « + Ajouter un produit »</td></tr>'
+    : produits.map(function (p, i) {
+        return '<tr><td>' + echap(p.name) + '</td><td>' + p.priceFormatted + '</td><td>' + badgeStock(p.stock)
+          + '</td><td>' + echap(p.category) + '</td><td>'
+          + '<button class="btn" onclick="modifierStock(' + i + ')">Modifier stock</button>'
+          + '<button class="btn danger" onclick="desactiver(' + i + ')">Désactiver</button></td></tr>';
+      }).join('');
+}
+
+function modifierStock(i) {
+  const p = produits[i];
+  const valeur = prompt('Nouveau stock pour « ' + p.name + ' » :', String(p.stock));
+  if (valeur === null) return;
+  const stock = parseInt(valeur, 10);
+  if (Number.isNaN(stock) || stock < 0) { alert('Stock invalide (entier ≥ 0)'); return; }
+  api('/api/catalog/' + p.id + '/stock', { method: 'PATCH', body: JSON.stringify({ stock: stock }) })
+    .then(function () { chargerCatalogue(); })
+    .catch(function (e) { alert(e.message || 'Erreur'); });
+}
+
+function desactiver(i) {
+  const p = produits[i];
+  if (!confirm('Désactiver « ' + p.name + ' » ? Il ne sera plus visible par les clients.')) return;
+  api('/api/catalog/' + p.id, { method: 'DELETE' })
+    .then(function () { chargerCatalogue(); })
+    .catch(function (e) { alert(e.message || 'Erreur'); });
+}
+
+function fermerModal() { document.getElementById('modal').classList.remove('ouvert'); }
+
+function ajouterProduit() {
+  const val = function (id) { return document.getElementById(id).value; };
+  const body = {
+    name: val('p-nom').trim(),
+    description: val('p-description').trim(),
+    price: parseInt(val('p-prix'), 10),
+    stock: parseInt(val('p-stock'), 10),
+    category: val('p-categorie').trim() || 'general',
+    imageUrl: val('p-image').trim() || undefined,
+  };
+  if (!body.name || !body.price || body.price <= 0 || Number.isNaN(body.stock) || body.stock < 0) {
+    document.getElementById('erreur-produit').textContent = 'Nom, prix (> 0) et stock (≥ 0) sont obligatoires.';
+    return;
+  }
+  api('/api/catalog', { method: 'POST', body: JSON.stringify(body) })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (!data.success || !data.data) {
+        document.getElementById('erreur-produit').textContent = data.error || 'Erreur';
+        return;
+      }
+      fermerModal();
+      ['p-nom', 'p-description', 'p-prix', 'p-stock', 'p-image'].forEach(function (id) {
+        document.getElementById(id).value = '';
+      });
+      document.getElementById('erreur-produit').textContent = '';
+      chargerCatalogue();
+    })
+    .catch(function () {
+      document.getElementById('erreur-produit').textContent = 'Serveur injoignable';
+    });
+}
+
+async function chargerCommandes() {
+  const statut = document.getElementById('filtre-statut').value;
+  const res = await api('/api/orders?limit=20' + (statut ? '&status=' + statut : ''))
+    .then(function (r) { return r.json(); });
+  if (!res.orders) return;
+  const badges = { PENDING: 'orange', CONFIRMED: 'vert', PAID: 'vert', DELIVERED: 'vert', CANCELLED: 'rouge' };
+  document.getElementById('tbl-commandes').innerHTML = res.orders.length === 0
+    ? '<tr><td colspan="5">Aucune commande</td></tr>'
+    : res.orders.map(function (c) {
+        return '<tr><td>' + echap(c.id.slice(0, 8)) + '</td><td>' + echap(c.phoneNumber) + '</td><td>' + c.totalFormatted
+          + '</td><td><span class="badge ' + (badges[c.status] || 'gris') + '">' + c.status + '</span></td>'
+          + '<td>' + new Date(c.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + '</td></tr>';
+      }).join('');
+}
+
+/* Démarrage : token présent → dashboard, sinon login */
+if (TOKEN()) { afficherDashboard(); }
+/* Rafraîchissement auto toutes les 60 s (7 requêtes JSON légères — ok en 3G) */
+setInterval(function () { if (TOKEN()) { loadDashboard(); } }, 60000);
+</script>
+
+<script>
+/* --- Campagnes : score qualité + historique (api() et echap() définis plus haut) --- */
+const LIBELLES_TEMPLATES = {
+  ORDER_CONFIRMATION: 'Confirmation de commande',
+  PAYMENT_REQUEST: 'Demande de paiement',
+  DELIVERY_UPDATE: 'Mise à jour livraison',
+};
+
+function afficherQualite(q) {
+  const badge = document.getElementById('qualite-badge');
+  const details = document.getElementById('qualite-details');
+  const btn = document.getElementById('btn-lancer-campagne');
+  if (q.rating === 'GREEN') {
+    badge.textContent = '🟢 Score vert — campagnes autorisées';
+    badge.className = 'badge vert';
+    btn.disabled = false;
+    details.textContent = 'Limite : ' + q.dailyLimit + ' messages/24h (' + q.hourlyLimit + '/heure).';
+  } else if (q.rating === 'YELLOW') {
+    badge.textContent = '🟡 Score jaune — limitez vos envois';
+    badge.className = 'badge orange';
+    btn.disabled = false;
+    details.textContent = (q.reason || '') + ' Ciblez uniquement vos clients actifs.';
+  } else {
+    badge.textContent = '🔴 Score rouge — campagnes bloquées';
+    badge.className = 'badge rouge';
+    btn.disabled = true;
+    details.textContent = q.reason || 'Contactez le support AfriBot.';
+  }
+}
+
+async function chargerQualite() {
+  try {
+    const res = await api('/api/campaigns/quality');
+    afficherQualite(await res.json());
+  } catch (e) {
+    document.getElementById('qualite-badge').textContent = 'Score qualité indisponible';
+  }
+}
+
+function remplirSelectTemplates() {
+  const sel = document.getElementById('camp-template');
+  sel.innerHTML = Object.keys(LIBELLES_TEMPLATES)
+    .map(function (k) { return '<option value="' + k + '">' + LIBELLES_TEMPLATES[k] + '</option>'; })
+    .join('');
+  sel.onchange = previsualiserCampagne;
+  document.getElementById('camp-p1').oninput = previsualiserCampagne;
+  document.getElementById('camp-p2').oninput = previsualiserCampagne;
+  previsualiserCampagne();
+}
+
+function previsualiserCampagne() {
+  const cle = document.getElementById('camp-template').value;
+  const p1 = document.getElementById('camp-p1').value || '{{1}}';
+  const p2 = document.getElementById('camp-p2').value || '{{2}}';
+  const apercu = {
+    ORDER_CONFIRMATION: 'Votre commande ' + p1 + ' a été confirmée. Montant : ' + p2 + ' FCFA…',
+    PAYMENT_REQUEST: 'Paiement en attente pour votre commande ' + p1 + ' : ' + p2 + ' FCFA…',
+    DELIVERY_UPDATE: 'Votre commande ' + p1 + ' est en route…',
+  }[cle] || '';
+  document.getElementById('camp-estimation').textContent = 'Aperçu : ' + apercu;
+}
+
+async function lancerCampagne() {
+  const feedback = document.getElementById('camp-feedback');
+  feedback.textContent = 'Création…';
+  try {
+    const params = [];
+    const p1 = document.getElementById('camp-p1').value.trim();
+    const p2 = document.getElementById('camp-p2').value.trim();
+    if (p1) params.push(p1);
+    if (p2) params.push(p2);
+    const creee = await api('/api/campaigns', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: document.getElementById('camp-nom').value.trim()
+          || 'Campagne ' + new Date().toLocaleDateString('fr-FR'),
+        type: 'BROADCAST',
+        templateKey: document.getElementById('camp-template').value,
+        templateParams: JSON.stringify(params),
+        targetSegment: document.getElementById('camp-segment').value,
+      }),
+    });
+    feedback.textContent = 'Envoi en cours…';
+    const resultat = await (await api('/api/campaigns/' + creee.campaign.id + '/send', { method: 'POST' })).json();
+    feedback.textContent = resultat.paused
+      ? '⚠️ Campagne pausée : ' + (resultat.reason || 'garde-fou anti-ban')
+      : '✅ ' + resultat.sent + ' envoyé(s), ' + resultat.blocked + ' bloqué(s)';
+    chargerCampagnes();
+    chargerQualite();
+  } catch (e) {
+    feedback.textContent = '';
+    document.getElementById('erreur-campagnes').textContent = 'Erreur : ' + (e.message || e);
+  }
+}
+
+function badgeCampagne(status, blockRate) {
+  if (status === 'PAUSED' || blockRate > 2) return '<span class="badge rouge">🔴 Pause</span>';
+  if (status === 'ACTIVE') return '<span class="badge orange">🟡 En cours</span>';
+  if (status === 'COMPLETED') return '<span class="badge vert">🟢 Terminée</span>';
+  return '<span class="badge gris">Brouillon</span>';
+}
+
+async function chargerCampagnes() {
+  try {
+    const data = await api('/api/campaigns');
+    document.getElementById('tbl-campagnes').innerHTML = data.campaigns.map(function (c) {
+      return '<tr><td>' + echap(c.name) + '</td><td>' + new Date(c.createdAt).toLocaleDateString('fr-FR')
+        + '</td><td>' + badgeCampagne(c.status, c.blockRate)
+        + '</td><td>' + c.totalSent + '</td><td>' + c.totalRead + '</td><td>' + c.totalReplied
+        + '</td><td>' + c.totalOrders + '</td><td>' + c.roiPerSent + ' FCFA</td>'
+        + '<td>' + c.blockRate.toFixed(1) + ' %</td>'
+        + '<td><button class="btn" onclick="voirStatsCampagne(\'' + c.id + '\')">Stats</button></td></tr>';
+    }).join('') || '<tr><td colspan="10">Aucune campagne pour le moment.</td></tr>';
+  } catch (e) {
+    document.getElementById('erreur-campagnes').textContent = 'Erreur chargement campagnes : ' + (e.message || e);
+  }
+}
+
+async function voirStatsCampagne(id) {
+  try {
+    const s = await api('/api/campaigns/' + id + '/stats');
+    const c = s.campaign;
+    alert(c.name + '\nEnvoyés : ' + c.totalSent + '\nLivrés : ' + c.totalDelivered
+      + '\nLus : ' + c.totalRead + '\nRéponses : ' + c.totalReplied
+      + '\nCommandes : ' + c.totalOrders + '\nRevenus : ' + c.revenueGenerated + ' FCFA');
+  } catch (e) { /* silencieux */ }
+}
+
+remplirSelectTemplates();
+if (TOKEN()) { chargerQualite(); chargerCampagnes(); }
+</script>
+</body>
+</html>

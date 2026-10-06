@@ -1,0 +1,382 @@
+// =============================================================================
+// AfriBot — schéma Prisma (PostgreSQL)
+// Aligné sur les types TypeScript : src/modules/catalog, orders, payments.
+// Prix et montants en entiers (FCFA — pas de centimes en XOF).
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Catalogue commerçant
+// ---------------------------------------------------------------------------
+model Product {
+  id          String      @id @default(uuid())
+  name        String
+  /// Prix unitaire en FCFA (entier)
+  price       Int
+  stock       Int         @default(0)
+  /// Photo compressée < 100 Ko (optimisation 2G/3G via sharp)
+  imageUrl    String?
+  category    String      @default("general")
+  description String      @default("")
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  orderItems  OrderItem[]
+
+  @@index([category, isActive])
+  @@map("products")
+}
+
+// ---------------------------------------------------------------------------
+// Commandes
+// ---------------------------------------------------------------------------
+model Order {
+  id            String        @id @default(uuid())
+  /// Numéro WhatsApp du client (format international sans "+")
+  phoneNumber   String
+  total         Int
+  status        OrderStatus   @default(PENDING)
+  paymentMethod PaymentMethod @default(COD)
+  /// Adresse de livraison saisie en conversation
+  address       String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  items         OrderItem[]
+  payments      Payment[]
+  /// Livraison associée (1-1) — créée à l'assignation d'un livreur.
+  delivery      Delivery?
+
+  @@index([phoneNumber, createdAt])
+  @@index([status, createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  /// Quantité commandée
+  quantity  Int
+  /// Prix unitaire figé au moment de la commande (FCFA)
+  unitPrice Int
+
+  @@index([productId])
+  @@map("order_items")
+}
+
+// ---------------------------------------------------------------------------
+// Paiements Mobile Money (CinetPay / FedaPay)
+// ---------------------------------------------------------------------------
+model Payment {
+  id            String          @id @default(uuid())
+  orderId       String
+  order         Order           @relation(fields: [orderId], references: [id])
+  provider      PaymentProvider
+  /// Identifiant de transaction chez le fournisseur (unique)
+  transactionId String          @unique
+  amount        Int
+  currency      String          @default("XOF")
+  status        PaymentStatus   @default(PENDING)
+  /// Données libres JSON : code de transaction Wave/OM/Moov (MODE B),
+  /// payload PawaPay (MODE C), référence de preuve...
+  metadata      String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([orderId])
+  @@map("payments")
+}
+
+// ---------------------------------------------------------------------------
+// Enums — valeurs identiques aux enums TypeScript
+// ---------------------------------------------------------------------------
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PAID
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  COD
+  MOBILE_MONEY
+}
+
+enum PaymentProvider {
+  CINETPAY
+  FEDAPAY
+  /// MODE B — virement direct Wave / Orange Money / Moov + validation humaine
+  DIRECT
+  /// MODE C — agrégateur PawaPay (activé quand l'entreprise est créée)
+  PAWAPAY
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+/// Cycle de vie d'une livraison (Delivery.status).
+enum DeliveryStatus {
+  PENDING
+  ASSIGNED
+  PICKED_UP
+  EN_ROUTE
+  DELIVERED
+  FAILED
+}
+
+// ---------------------------------------------------------------------------
+// Commerçant (tenant) — MODULE 3 / MODULE 4
+// ---------------------------------------------------------------------------
+// Le projet est mono-commerçant par déploiement (cf. auth.routes.ts qui signe
+// merchantId = 'admin'). Ce modèle matérialise le tenant en base pour pouvoir
+// y rattacher les livreurs et la configuration du bot. Multi-clients = Phase 5b.
+model Merchant {
+  id        String          @id
+  name      String          @default("Mon commerce")
+  phone     String?
+  isActive  Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  config    MerchantConfig?
+  livreurs  Livreur[]
+
+  @@map("merchants")
+}
+
+// ---------------------------------------------------------------------------
+// Configuration du bot, éditable 100 % depuis le dashboard (MODULE 3.1)
+// ---------------------------------------------------------------------------
+model MerchantConfig {
+  id         String   @id @default(uuid())
+  merchantId String   @unique
+  merchant   Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  // Identité
+  businessName        String
+  businessDescription String?
+  logoUrl             String?
+
+  // Horaires
+  openHour   Int    @default(8)
+  closeHour  Int    @default(20)
+  timezone   String @default("Africa/Ouagadougou")
+  /// JSON: [0,1] = dimanche, lundi
+  closedDays String @default("[]")
+
+  // Messages personnalisés
+  welcomeMessage  String?
+  closedMessage   String?
+  thankYouMessage String?
+
+  // Paiements (MODE A = COD, MODE B = DIRECT, MODE C = PAWAPAY)
+  paymentMode  String  @default("COD")
+  waveNumber   String?
+  orangeNumber String?
+  moovNumber   String?
+  pawaPayToken String?
+
+  // Livraison
+  deliveryEnabled Boolean @default(false)
+  /// JSON: ["Secteur 15, Pissy", ...]
+  deliveryZones   String  @default("[]")
+  deliveryFee     Float   @default(0)
+  codEnabled      Boolean @default(true)
+
+  // Langue
+  defaultLanguage    String @default("fr")
+  /// JSON: ["fr","moore"]
+  supportedLanguages String @default("[\"fr\"]")
+
+  // Notifications
+  notifyMerchantOrders Boolean @default(true)
+  merchantNotifPhone   String?
+
+  // WhatsApp Business (Meta Cloud API)
+  waPhoneNumberId String?
+  waAccessToken   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("merchant_configs")
+}
+
+// ---------------------------------------------------------------------------
+// Journal de conversation durable — conformité Meta (MODULE 5.1)
+// ---------------------------------------------------------------------------
+// POURQUOI une table dédiée alors que src/shared/history.ts existe déjà :
+// `history` vit dans Redis avec un TTL de 30 min (sessions). Or la règle Meta
+// exige de savoir si le CLIENT nous a écrit dans les 24 h (fenêtre de service)
+// et s'il a initié la conversation (opt-in) — donc au-delà de 30 min.
+// Ce journal est la source de vérité conforme (auditable) ; Redis ne sert que
+// de cache d'accélération pour la fenêtre de 24 h.
+model ConversationLog {
+  id          String   @id @default(uuid())
+  phone       String
+  /// true = message du bot/commerçant, false = message du client
+  fromMe      Boolean
+  text        String?
+  type        String   @default("text")
+  /// true si le message a été bloqué par les garde-fous de conformité
+  blocked     Boolean  @default(false)
+  blockReason String?
+  createdAt   DateTime @default(now())
+
+  // Index composite : « dernier message client pour ce numéro » et opt-in
+  @@index([phone, fromMe, createdAt])
+  @@map("conversation_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Livreur — reçoit les notifications de livraison via WhatsApp (MODULE 1)
+// ---------------------------------------------------------------------------
+model Livreur {
+  id              String     @id @default(uuid())
+  merchantId      String
+  merchant        Merchant   @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  name            String
+  /// Numéro WhatsApp du livreur (format international sans "+") — UNIQUE :
+  /// c'est la clé d'aiguillage du ConversationRouter vers le flux livreur.
+  phone           String     @unique
+  /// Zone de livraison (ex: "Secteur 15, Pissy")
+  zone            String?
+  isActive        Boolean    @default(true)
+  isAvailable     Boolean    @default(true)
+  totalDeliveries Int        @default(0)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deliveries      Delivery[]
+
+  @@index([merchantId, isActive])
+  @@map("livreurs")
+}
+
+// ---------------------------------------------------------------------------
+// Livraison d'une commande (MODULE 1)
+// ---------------------------------------------------------------------------
+model Delivery {
+  id              String         @id @default(uuid())
+  orderId         String         @unique
+  order           Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  livreurId       String?
+  livreur         Livreur?       @relation(fields: [livreurId], references: [id])
+  /// PENDING | ASSIGNED | PICKED_UP | EN_ROUTE | DELIVERED | FAILED
+  status          DeliveryStatus @default(PENDING)
+  /// Numéro WhatsApp du livreur (dénormalisé : survit à la désactivation du livreur)
+  livreurPhone    String?
+  customerPhone   String
+  deliveryAddress String
+  /// Minutes estimées annoncées au client
+  estimatedTime   Int?
+  /// URL de la photo preuve de livraison
+  proofPhoto      String?
+  failureReason   String?
+  /// Montant à collecter (Cash On Delivery), en FCFA (entier, pas de centimes en XOF)
+  codAmount       Int?
+  codCollected    Boolean        @default(false)
+  notes           String?
+  assignedAt      DateTime?
+  deliveredAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([status])
+  @@index([livreurId, status])
+  @@index([livreurPhone, status])
+  @@map("deliveries")
+}
+
+// -----------------------------------------------------------------------------
+// Campagnes pub ciblées — CTWA + Broadcast (MODULE CAMPAGNES)
+// -----------------------------------------------------------------------------
+//
+// RÈGLE META 1 : N'envoyer QU'à des contacts qui ont écrit en premier
+//   (direction = 'IN' → fromMe = false dans ConversationLog).
+// RÈGLE META 2 : Utiliser uniquement des templates approuvés hors de la
+//   fenêtre de 24 h après le dernier message client.
+// RÈGLE META 3 : Respecter le rate limiting du tier actuel
+//   (Tier 0: 250/j | Tier 1: 1000/j | Tier 2: 10k/j).
+// RÈGLE META 4 : Surveiller le blockRate — si > 2 % → pause automatique.
+// RÈGLE META 5 : Ne JAMAIS acheter ou scraper des listes. Seuls les contacts
+//   organiques opt-in sont autorisés.
+model Campaign {
+  id             String    @id @default(uuid())
+  merchantId     String
+  name           String
+  /// CTWA | BROADCAST | REACTIVATION
+  type           String
+  /// DRAFT | ACTIVE | PAUSED | COMPLETED
+  status         String    @default("DRAFT")
+  /// Clé d'un template approuvé (src/shared/templates.ts, ex: ORDER_CONFIRMATION)
+  templateKey    String
+  /// JSON des variables du template ({{1}}, {{2}}...)
+  templateParams String    @default("{}")
+  /// ALL | ACTIVE_30 | ACTIVE_90 | DORMANT | NEW
+  targetSegment  String    @default("ALL")
+  scheduledAt    DateTime?
+  sentAt         DateTime?
+
+  // Métriques
+  totalTargeted    Int     @default(0)
+  totalSent        Int     @default(0)
+  totalDelivered   Int     @default(0)
+  totalRead        Int     @default(0)
+  totalReplied     Int     @default(0)
+  /// Commandes générées par la campagne (attribution CTWA / récence)
+  totalOrders      Int     @default(0)
+  /// Chiffre d'affaires généré (FCFA entier) — ROI de la campagne
+  revenueGenerated Int     @default(0)
+
+  // Sécurité anti-ban
+  /// GREEN | YELLOW | RED — score qualité Meta au moment de l'envoi
+  qualityScore String @default("GREEN")
+  /// Taux de blocage observé en % — si > 2 %, pause automatique
+  blockRate    Float  @default(0)
+
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  contacts  CampaignContact[]
+
+  @@index([merchantId, status])
+  @@index([merchantId, createdAt])
+  @@map("campaigns")
+}
+
+model CampaignContact {
+  id          String    @id @default(uuid())
+  campaignId  String
+  campaign    Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  phoneNumber String
+  /// PENDING | SENT | DELIVERED | READ | REPLIED | BLOCKED
+  status      String    @default("PENDING")
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  readAt      DateTime?
+  repliedAt   DateTime?
+
+  // Tracking CTWA
+  /// Identifiant de clic Meta (click-to-WhatsApp ad)
+  ctwaClid   String?
+  isFromCtwa Boolean @default(false)
+
+  @@unique([campaignId, phoneNumber])
+  @@index([campaignId, status])
+  @@index([phoneNumber])
+  @@map("campaign_contacts")
+}
+

@@ -1,0 +1,55 @@
+{
+  "name": "AfriBot — Broadcast",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": 401,
+      "name": "manual-trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1.0,
+      "position": [
+        260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "sender": "={{ $env.MERCHANT_PHONE }}",
+        "receiver": "={{ $json.phone }}",
+        "text": "📢 {{ $node[\"dynamique-message\"].json.text }}",
+        "options": {}
+      },
+      "id": 403,
+      "name": "send-broadcast",
+      "type": "n8n-nodes-base.evolutionApi",
+      "typeVersion": 2.0,
+      "position": [
+        500,
+        300
+      ],
+      "credentials": {
+        "evolutionApi": {
+          "id": "evo-cred",
+          "name": "Evolution API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "manual-trigger": {
+      "main": [
+        [
+          {
+            "node": "send-broadcast",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "meta": {
+    "instanceId": "afribot-n8n",
+    "templateDemonstration": false
+  }
+}

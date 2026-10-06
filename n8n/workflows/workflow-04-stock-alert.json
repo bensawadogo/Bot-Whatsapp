@@ -1,0 +1,94 @@
+{
+  "name": "AfriBot — Alerte Stock",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "mode": "everyHour",
+          "minute": 30
+        }
+      },
+      "id": 301,
+      "name": "schedule-stock",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.AFRIBOT_API_URL }}/api/stats/low-stock",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.AFRIBOT_JWT }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": 302,
+      "name": "fetch-stock",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "sender": "={{ $env.MERCHANT_PHONE }}",
+        "receiver": "={{ $node[\"make-senders\"].output }}",
+        "text": "🚨 Alertes stock bas AfriBot · {{ $now.toFormat(\"dd/MM HH:mm\") }} GMT\n\nVotre boutique a besoin de réapprovisionner :\n{{ $json.summary ?? \"Aucun résumé disponible (voir API)\" }}\n\nVoir le catalogue et commander en back-office AfriBot.",
+        "options": {}
+      },
+      "id": 303,
+      "name": "send-stock",
+      "type": "n8n-nodes-base.evolutionApi",
+      "typeVersion": 2.0,
+      "position": [
+        760,
+        300
+      ],
+      "credentials": {
+        "evolutionApi": {
+          "id": "evo-cred",
+          "name": "Evolution API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "schedule-stock": {
+      "main": [
+        [
+          {
+            "node": "fetch-stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch-stock": {
+      "main": [
+        [
+          {
+            "node": "send-stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "meta": {
+    "instanceId": "afribot-n8n",
+    "templateDemonstration": false
+  }
+}
