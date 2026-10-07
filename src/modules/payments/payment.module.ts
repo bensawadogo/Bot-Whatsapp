@@ -10,7 +10,7 @@
  * RE-VÉRIFIE le statut auprès du fournisseur (anti-fraude) avant de passer
  * la commande à PAID, d'envoyer le reçu et de noter le commerçant.
  */
-import { logger } from '../../config/logger';
+import { logger, paymentsLogger } from '../../config/logger';
 import { config } from '../../config/env';
 import { prisma } from '../../config/database';
 import { messageSender } from '../../shared/sender';
@@ -270,6 +270,7 @@ export class PaymentModule {
 
     // 4. Mise à jour du paiement + commande → PAID
     await updatePaymentStatus(transactionId, PaymentStatus.SUCCESS);
+    paymentsLogger.info(`PAID ${provider} ${redactId(transactionId)} order=${payment.orderId} amount=${payment.amount}`);
     try {
       await orderService.updateOrderStatus(payment.orderId, OrderStatus.PAID);
     } catch (err) {

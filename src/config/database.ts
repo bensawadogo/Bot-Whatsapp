@@ -31,5 +31,3 @@ prisma.$on('error' as never, (event: unknown) => {
   const e = event as { message: string };
   logger.error(`Prisma : ${e.message}`);
 });
-
-// Schéma initial appliqué (tables Product/Order/Payment) — voir prisma/migrations.

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AfriBot — chargement et validation des variables d'environnement.
  *
  * Toutes les variables sont validées avec Zod au démarrage : si une variable

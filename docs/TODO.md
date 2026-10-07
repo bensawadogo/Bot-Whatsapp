@@ -124,7 +124,22 @@ Ce fichier est le backlog de référence du projet AfriBot. Chaque tâche est su
 
 ## BUGS CONNUS
 
-(vide au démarrage)
+> Dernier audit : 06/10/2026 (cycle orchestrateur — bug-hunter → dette-technique → securite → tests-qualite).
+> Voir aussi `docs/AUDIT_DETTE.md` pour le tableau complet.
+
+- [x] B1 `Delivery.codAmount Float` → `Int` — schéma + migration `20261005000000_fcfa_int` déjà appliquée. [corrigé]
+- [x] B2 Encodage UTF-8 corrompu — `src/config/env.ts` avait un BOM UTF-8 ; supprimé (fichiers propres, verification par script Node). [corrigé]
+- [x] B3 `CatalogModule.sendCatalog` pagination mémoire → `listProductsPaginated` (SQL). [corrigé]
+- [x] B4 `src/index.ts:172` initialisation Redis/Prisma au démarrage → `checkDependencies()` (fail-fast, sauf NODE_ENV=test). [corrigé]
+- [x] B5 `logger.ts:63` transport audit paiements → `paymentsLogger` (fichier `payments-%DATE%.log`, rétention 90 j) utilisé dans `payment.module.ts:272` (PAID) + MODE B VALIDER/REFUSER. [corrigé]
+- [x] B6 `findOrderByIdPrefix` collision sur préfixe court → minimum 8 caractères + refus si >1 correspondance (garde-fou anti-ambiguïté) ; 4 tests de non-régression dans `tests/order.prefix.test.ts`. [corrigé]
+- [x] D1 `database.ts:35` TODO migration initiale → supprimé (les migrations existent). [corrigé]
+- [x] D6 `Campaign.revenueGenerated Float` → `Int` (mêmes migration FCFA). [corrigé]
+- [x] D8 `session.setState` + `updateSession` double lecture Redis → factorisé dans `updateState` (une seule lecture). [corrigé]
+- [x] D9 `console.log` dans `prisma/seed.ts:33` → `logger.info` (winston). [corrigé]
+- [x] D10 `docs/ARCHITECTURE.md` chemins obsolètes → section 5 déjà alignée sur `src/shared/*` + `src/modules/*`. [corrigé]
+
+Aucun bug P0/P1 résiduel détecté. Dette restante : aucune (voir `docs/AUDITDETTE.md` § Dette restante).
 
 ## NOTES TECHNIQUES
 

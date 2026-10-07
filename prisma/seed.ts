@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 
+import { logger } from '../src/config/logger';
+
 const prisma = new PrismaClient();
 
 async function main() {
@@ -30,7 +32,7 @@ async function main() {
     });
   }
 
-  console.log('✅ Seed terminé : merchant "admin" prêt.');
+  logger.info('Seed terminé : merchant "admin" prêt.');
 }
 
 main()
@@ -39,7 +41,7 @@ main()
     process.exit(0);
   })
   .catch(async (e) => {
-    console.error('❌ Erreur seed :', e);
+    logger.error('Seed échoué', { error: String(e) });
     await prisma.$disconnect();
     process.exit(1);
   });

@@ -186,17 +186,25 @@ export async function listOrders(options: {
 }
 
 /**
- * Résout une commande par référence COURTE (8 premiers caractères de l'id).
+ * Résolve une commande par référence COURTE (8 premiers caractères de l'id).
  * Utilisée quand un humain tape « VALIDER 1a2b3c4d » ou « LIVRÉ 1a2b3c4d »
  * (une référence complète de 25 caractères est impraticable sur WhatsApp).
+ *
+ * Garde-fou anti-collision : un préfixe trop court ou ambigu (plusieurs
+ * commandes commencent par le même préfixe) renvoie null — on ne devine pas.
  */
 export async function findOrderByIdPrefix(prefix: string): Promise<Order | null> {
   const ref = prefix.trim().toLowerCase();
-  if (ref.length < 4) return null;
-  const row = await prisma.order.findFirst({
+  if (ref.length < 8) return null;
+
+  const matches = await prisma.order.findMany({
     where: { id: { startsWith: ref } },
-    orderBy: { createdAt: 'desc', id: 'desc' },
+    orderBy: { createdAt: 'desc' },
     include: { items: true },
+    take: 2, // enough to detect ambiguity without loading the whole table
   });
-  return row ? toOrder(row) : null;
+
+  if (matches.length === 0) return null;
+  if (matches.length > 1) return null; // ambiguous prefix → refuse to guess
+  return toOrder(matches[0]);
 }

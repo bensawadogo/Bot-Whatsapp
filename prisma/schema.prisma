@@ -332,15 +332,15 @@ model Campaign {
   sentAt         DateTime?
 
   // Métriques
-  totalTargeted    Int     @default(0)
-  totalSent        Int     @default(0)
-  totalDelivered   Int     @default(0)
-  totalRead        Int     @default(0)
-  totalReplied     Int     @default(0)
+  totalTargeted    Int @default(0)
+  totalSent        Int @default(0)
+  totalDelivered   Int @default(0)
+  totalRead        Int @default(0)
+  totalReplied     Int @default(0)
   /// Commandes générées par la campagne (attribution CTWA / récence)
-  totalOrders      Int     @default(0)
+  totalOrders      Int @default(0)
   /// Chiffre d'affaires généré (FCFA entier) — ROI de la campagne
-  revenueGenerated Int     @default(0)
+  revenueGenerated Int @default(0)
 
   // Sécurité anti-ban
   /// GREEN | YELLOW | RED — score qualité Meta au moment de l'envoi
@@ -379,4 +379,3 @@ model CampaignContact {
   @@index([phoneNumber])
   @@map("campaign_contacts")
 }
-
